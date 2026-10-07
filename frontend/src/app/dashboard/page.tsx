@@ -21,7 +21,7 @@ export default function MeetingsLibrary() {
   const [editTitle, setEditTitle] = useState("");
 
   const fetchMeetings = () => {
-    fetch("http://localhost:8000/api/meetings/")
+    fetch("https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/")
       .then((res) => res.json())
       .then((data) => setMeetings(data))
       .catch((err) => console.error(err));
@@ -35,7 +35,7 @@ export default function MeetingsLibrary() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await fetch(`http://localhost:8000/api/meetings/${id}`, { method: "DELETE" });
+      await fetch(`https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/${id}`, { method: "DELETE" });
       fetchMeetings();
       setActiveMenuId(null);
     } catch (err) {
@@ -46,7 +46,7 @@ export default function MeetingsLibrary() {
   const handleRenameSubmit = async () => {
     if (!editingMeeting) return;
     try {
-      await fetch(`http://localhost:8000/api/meetings/${editingMeeting.id}`, {
+      await fetch(`https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/${editingMeeting.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -70,7 +70,7 @@ export default function MeetingsLibrary() {
       date: new Date().toISOString()
     };
     try {
-      await fetch("http://localhost:8000/api/meetings/", {
+      await fetch("https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newMeeting)

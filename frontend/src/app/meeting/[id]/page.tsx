@@ -30,7 +30,7 @@ function MeetingDetailContent() {
   const [removeBranding, setRemoveBranding] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/api/meetings/${params.id}`)
+    fetch(`https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/${params.id}`)
       .then((res) => res.json())
       .then((data) => { 
         setMeeting(data); 
@@ -248,7 +248,7 @@ function MeetingDetailContent() {
                               const newSummary = { ...meeting.summary, action_items: JSON.stringify(currentItems) };
                               setMeeting({ ...meeting, summary: newSummary });
                               
-                              fetch(`http://localhost:8000/api/meetings/${meeting.id}/summary`, {
+                              fetch(`https://fireflies-clone-backend-ta0o.onrender.com/api/meetings/${meeting.id}/summary`, {
                                 method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
