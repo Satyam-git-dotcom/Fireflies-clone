@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Play, Pause, Search, Video, Bot, Menu, Sparkles, CheckSquare, MessageSquare, RotateCcw, RotateCw, Download, Star, Share, ThumbsUp, ThumbsDown, X, Edit3, Copy, MoreHorizontal, ChevronDown, Bell, Plus, Maximize } from "lucide-react";
+import toast from "react-hot-toast";
+import { Play, Pause, Search, Video, Bot, Menu, Sparkles, CheckSquare, MessageSquare, RotateCcw, RotateCw, Download, Star, Share, ThumbsUp, ThumbsDown, X, Edit3, Copy, MoreHorizontal, ChevronDown, Bell, Plus, Maximize, Send, AudioLines, MessageCircle, Bookmark, Info } from "lucide-react";
 
 function MeetingDetailContent() {
   const params = useParams();
@@ -18,7 +19,15 @@ function MeetingDetailContent() {
   
   const [rightTab, setRightTab] = useState("transcript");
   const [transcriptSearch, setTranscriptSearch] = useState("");
+  const [askFredInput, setAskFredInput] = useState("");
   const activeTranscriptRef = useRef<HTMLDivElement | null>(null);
+
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadTab, setDownloadTab] = useState<"Transcript" | "Summary" | "Audio">("Transcript");
+  const [downloadFormat, setDownloadFormat] = useState("DOCX");
+  const [includeTimestamp, setIncludeTimestamp] = useState(true);
+  const [showSpeakerName, setShowSpeakerName] = useState(true);
+  const [removeBranding, setRemoveBranding] = useState(false);
 
   useEffect(() => {
     fetch(`http://localhost:8000/api/meetings/${params.id}`)
@@ -49,7 +58,45 @@ function MeetingDetailContent() {
     setCurrentTime(Number(e.target.value));
   };
 
-  if (loading || !meeting) return <div style={{ padding: 40, color: "#a1a1aa", backgroundColor: "#111113", height: "100vh" }}>Loading...</div>;
+  const handleDownload = () => {
+    if (!meeting) return;
+    
+    let content = `Meeting: ${meeting.title}\nDate: ${new Date(meeting.date).toLocaleString()}\n\n`;
+    
+    if (meeting.summary) {
+      content += `--- SUMMARY ---\n${meeting.summary.summary_text}\n\n`;
+    }
+    
+    if (meeting.transcripts && meeting.transcripts.length > 0) {
+      content += `--- TRANSCRIPT ---\n`;
+      meeting.transcripts.forEach((t: any) => {
+        content += `[${Math.floor(t.start_time / 60).toString().padStart(2, '0')}:${Math.floor(t.start_time % 60).toString().padStart(2, '0')}] ${t.speaker}: ${t.text}\n`;
+      });
+    }
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${meeting.title}_export.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Transcript exported successfully!");
+  };
+
+  const handleAskFred = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!askFredInput.trim()) return;
+    toast("LLM Chat Coming Soon! Your question: " + askFredInput, { icon: '🤖' });
+    setAskFredInput("");
+  };
+
+  if (loading || !meeting) return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#111113" }}>
+      <div className="spinner" style={{ marginBottom: 24 }}></div>
+      <div style={{ color: "#a1a1aa", fontSize: "0.95rem", fontWeight: 500 }}>Loading meeting details...</div>
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", backgroundColor: "#111113", color: "#f3f4f6", fontFamily: "var(--font-inter), sans-serif" }}>
@@ -85,6 +132,16 @@ function MeetingDetailContent() {
       {/* Main Layout */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         
+        {/* Far Left Mini Sidebar */}
+        <aside style={{ width: 56, backgroundColor: "#09090b", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", borderRight: "1px solid #27272a", gap: 24, zIndex: 10 }}>
+          <Search size={18} color="#7c3aed" cursor="pointer" onClick={() => toast("Search feature coming soon")} />
+          <AudioLines size={18} color="#71717a" cursor="pointer" onClick={() => toast("Audio timeline coming soon")} />
+          <MessageCircle size={18} color="#71717a" cursor="pointer" onClick={() => toast("Comments coming soon")} />
+          <Bookmark size={18} color="#71717a" cursor="pointer" onClick={() => toast("Bookmarks coming soon")} />
+          <div style={{ flex: 1 }} />
+          <Info size={18} color="#71717a" cursor="pointer" onClick={() => toast("Meeting info coming soon")} />
+        </aside>
+
         {/* Left Smart Search Panel */}
         <div style={{ width: 260, borderRight: "1px solid #27272a", display: "flex", flexDirection: "column", overflowY: "auto", backgroundColor: "#111113" }}>
           <div style={{ padding: "16px", borderBottom: "1px solid #27272a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -168,7 +225,7 @@ function MeetingDetailContent() {
             </div>
 
             {/* Actual AI Summary Content */}
-            <div style={{ color: "#d4d4d8", fontSize: "0.95rem", lineHeight: 1.6 }}>
+            <div className="fade-in-up" style={{ color: "#d4d4d8", fontSize: "0.95rem", lineHeight: 1.6 }}>
               <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "#fff", marginBottom: 24 }}>Current Focus Area</h3>
               
               {meeting.summary ? (
@@ -261,7 +318,7 @@ function MeetingDetailContent() {
                   <div style={{ fontSize: "0.85rem", color: "#f3f4f6", lineHeight: 1.4 }}>
                     Connect Slack and Gmail <span style={{ color: "#a1a1aa" }}>— get answers with full context.</span>
                   </div>
-                  <div style={{ color: "#a78bfa", fontSize: "0.85rem", marginTop: 8, textAlign: "right", cursor: "pointer" }}>Connect <X size={12} style={{ display: "inline", marginLeft: 4 }} color="#52525b" /></div>
+                  <div style={{ color: "#a78bfa", fontSize: "0.85rem", marginTop: 8, textAlign: "right", cursor: "pointer" }} onClick={() => toast("Connect integrations coming soon")}>Connect <X size={12} style={{ display: "inline", marginLeft: 4 }} color="#52525b" /></div>
                 </div>
               </div>
 
@@ -283,7 +340,7 @@ function MeetingDetailContent() {
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
+              <div className="fade-in-up" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
                 {meeting.transcripts?.map((t: any) => {
                   const isActive = currentTime >= t.start_time && currentTime <= t.end_time;
                   
@@ -330,10 +387,10 @@ function MeetingDetailContent() {
                 <span style={{ backgroundColor: "#18181b", border: "1px solid #27272a", padding: "4px 10px", borderRadius: 4, fontSize: "0.75rem", color: "#a1a1aa", display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#10b981" }}/> 1:1</span>
                 <span style={{ backgroundColor: "#18181b", border: "1px solid #27272a", padding: "4px 10px", borderRadius: 4, fontSize: "0.75rem", color: "#a1a1aa", display: "flex", alignItems: "center", gap: 6 }}><Plus size={10} color="#10b981"/> Meeting Minutes Mailer</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", backgroundColor: "#18181b", padding: "12px", borderRadius: 8, border: "1px solid #27272a" }}>
-                <input type="text" placeholder="Ask anything. Type / to run AI Skills" style={{ background: "transparent", border: "none", color: "#f3f4f6", width: "100%", fontSize: "0.85rem", outline: "none" }} />
-                <div style={{ width: 24, height: 24, backgroundColor: "#2d244a", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>↑</div>
-              </div>
+              <form onSubmit={handleAskFred} style={{ display: "flex", alignItems: "center", backgroundColor: "#18181b", padding: "12px", borderRadius: 8, border: "1px solid #27272a" }}>
+                <input type="text" placeholder="Ask anything. Type / to run AI Skills" value={askFredInput} onChange={(e) => setAskFredInput(e.target.value)} style={{ background: "transparent", border: "none", color: "#f3f4f6", width: "100%", fontSize: "0.85rem", outline: "none" }} />
+                <button type="submit" style={{ width: 24, height: 24, backgroundColor: "#2d244a", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer", border: "none" }}>↑</button>
+              </form>
             </div>
           )}
         </div>
@@ -372,7 +429,7 @@ function MeetingDetailContent() {
               {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
             </button>
             <RotateCw size={18} color="#a1a1aa" cursor="pointer" onClick={() => setCurrentTime(Math.min(maxTime, currentTime + 10))} />
-            <Download size={18} color="#a1a1aa" cursor="pointer" />
+            <Download size={18} color="#a1a1aa" cursor="pointer" onClick={() => setShowDownloadModal(true)} />
           </div>
 
           <div style={{ display: "flex", gap: 16, width: 120, justifyContent: "flex-end" }}>
@@ -384,13 +441,74 @@ function MeetingDetailContent() {
         </div>
       </div>
       
+      {/* Download Modal */}
+      {showDownloadModal && (
+        <div className="fade-in-up" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ width: 480, backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: 12, overflow: "hidden", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid #27272a" }}>
+              <div style={{ fontWeight: 500, color: "#fff", fontSize: "1rem" }}>Download Meeting</div>
+              <X size={16} color="#71717a" cursor="pointer" onClick={() => setShowDownloadModal(false)} />
+            </div>
+            
+            <div style={{ padding: "0 24px", borderBottom: "1px solid #27272a", display: "flex", gap: 24 }}>
+              <div className="interactive" style={{ padding: "16px 0", color: downloadTab === "Transcript" ? "#f3f4f6" : "#a1a1aa", fontSize: "0.9rem", borderBottom: downloadTab === "Transcript" ? "2px solid #a78bfa" : "2px solid transparent", cursor: "pointer" }} onClick={() => setDownloadTab("Transcript")}>Transcript</div>
+              <div className="interactive" style={{ padding: "16px 0", color: downloadTab === "Summary" ? "#f3f4f6" : "#a1a1aa", fontSize: "0.9rem", borderBottom: downloadTab === "Summary" ? "2px solid #a78bfa" : "2px solid transparent", cursor: "pointer" }} onClick={() => setDownloadTab("Summary")}>Summary</div>
+              <div className="interactive" style={{ padding: "16px 0", color: downloadTab === "Audio" ? "#f3f4f6" : "#a1a1aa", fontSize: "0.9rem", borderBottom: downloadTab === "Audio" ? "2px solid #a78bfa" : "2px solid transparent", cursor: "pointer" }} onClick={() => setDownloadTab("Audio")}>Audio</div>
+            </div>
+
+            <div style={{ padding: 24 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+                {(downloadTab === "Audio" ? ["MP3"] : downloadTab === "Summary" ? ["DOCX", "PDF", "JSON", "MD"] : ["PDF", "DOCX", "SRT", "CSV", "JSON", "MD"]).map(fmt => (
+                  <div key={fmt} className="interactive" style={{ padding: "6px 12px", border: downloadFormat === fmt ? "1px solid #a78bfa" : "1px solid #27272a", backgroundColor: downloadFormat === fmt ? "rgba(167, 139, 250, 0.1)" : "transparent", color: downloadFormat === fmt ? "#a78bfa" : "#a1a1aa", borderRadius: 6, fontSize: "0.85rem", cursor: "pointer" }} onClick={() => setDownloadFormat(fmt)}>
+                    {fmt}
+                  </div>
+                ))}
+              </div>
+
+              {downloadTab !== "Audio" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "0.9rem", color: "#d4d4d8", cursor: "pointer" }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: includeTimestamp ? "#7c3aed" : "transparent", border: includeTimestamp ? "none" : "1px solid #52525b", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setIncludeTimestamp(!includeTimestamp)}>
+                      {includeTimestamp && <CheckSquare size={14} color="#fff" />}
+                    </div>
+                    Include timestamps
+                  </label>
+                  {downloadTab === "Transcript" && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "0.9rem", color: "#d4d4d8", cursor: "pointer" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: showSpeakerName ? "#7c3aed" : "transparent", border: showSpeakerName ? "none" : "1px solid #52525b", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSpeakerName(!showSpeakerName)}>
+                        {showSpeakerName && <CheckSquare size={14} color="#fff" />}
+                      </div>
+                      Show speaker name
+                    </label>
+                  )}
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "0.9rem", color: "#d4d4d8", cursor: "pointer" }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: removeBranding ? "#7c3aed" : "transparent", border: removeBranding ? "none" : "1px solid #52525b", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setRemoveBranding(!removeBranding)}>
+                      {removeBranding && <CheckSquare size={14} color="#fff" />}
+                    </div>
+                    Remove Fireflies Branding
+                  </label>
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={() => { handleDownload(); setShowDownloadModal(false); }} style={{ padding: "8px 24px", backgroundColor: "#7c3aed", border: "none", borderRadius: 6, color: "#fff", fontSize: "0.9rem", cursor: "pointer" }}>Download</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function MeetingDetailView() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, color: "#a1a1aa", backgroundColor: "#111113", height: "100vh" }}>Loading...</div>}>
+    <Suspense fallback={
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#111113" }}>
+        <div className="spinner" style={{ marginBottom: 24 }}></div>
+        <div style={{ color: "#a1a1aa", fontSize: "0.95rem", fontWeight: 500 }}>Loading meeting...</div>
+      </div>
+    }>
       <MeetingDetailContent />
     </Suspense>
   );
