@@ -48,3 +48,13 @@ def update_meeting(db: Session, meeting_id: int, meeting_data: schemas.MeetingBa
         db.commit()
         db.refresh(db_meeting)
     return db_meeting
+
+def update_meeting_summary(db: Session, meeting_id: int, summary_data: schemas.MeetingSummaryBase):
+    db_summary = db.query(models.MeetingSummary).filter(models.MeetingSummary.meeting_id == meeting_id).first()
+    if db_summary:
+        for key, value in summary_data.dict().items():
+            setattr(db_summary, key, value)
+        db.commit()
+        db.refresh(db_summary)
+        return db_summary
+    return None

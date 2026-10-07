@@ -47,6 +47,13 @@ def update_meeting(meeting_id: int, meeting: schemas.MeetingBase, db: Session = 
         raise HTTPException(status_code=404, detail="Meeting not found")
     return db_meeting
 
+@app.put("/api/meetings/{meeting_id}/summary", response_model=schemas.MeetingSummary)
+def update_meeting_summary(meeting_id: int, summary: schemas.MeetingSummaryBase, db: Session = Depends(get_db)):
+    db_summary = crud.update_meeting_summary(db, meeting_id, summary)
+    if db_summary is None:
+        raise HTTPException(status_code=404, detail="Meeting summary not found")
+    return db_summary
+
 @app.delete("/api/meetings/{meeting_id}")
 def delete_meeting(meeting_id: int, db: Session = Depends(get_db)):
     success = crud.delete_meeting(db, meeting_id)

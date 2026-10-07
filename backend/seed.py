@@ -1,4 +1,5 @@
 import datetime
+import json
 from sqlalchemy.orm import Session
 from .database import engine, SessionLocal
 from . import models
@@ -7,61 +8,52 @@ def seed_db():
     models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     
-    if db.query(models.Meeting).first():
-        print("Database already seeded.")
-        db.close()
-        return
+    # Clear existing data for fresh seed
+    db.query(models.TranscriptLine).delete()
+    db.query(models.MeetingSummary).delete()
+    db.query(models.Meeting).delete()
+    db.commit()
 
     meeting1 = models.Meeting(
-        title="Weekly Sync",
-        date=datetime.datetime.utcnow() - datetime.timedelta(days=2),
-        duration=1800,
-        participants="Alice, Bob, Charlie"
+        title="meeting_280.wav",
+        date=datetime.datetime.utcnow() - datetime.timedelta(hours=2),
+        duration=344,
+        participants="Satyam V, Speaker 1, Speaker 2"
     )
     db.add(meeting1)
     db.commit()
     db.refresh(meeting1)
 
     t1 = [
-        models.TranscriptLine(meeting_id=meeting1.id, speaker="Alice", start_time=0.0, end_time=5.0, text="Hi everyone, let's get started with the weekly sync."),
-        models.TranscriptLine(meeting_id=meeting1.id, speaker="Bob", start_time=6.0, end_time=15.0, text="Sure, I can start. I worked on the frontend dashboard last week. It's almost done, just need to finalize the CSS."),
-        models.TranscriptLine(meeting_id=meeting1.id, speaker="Charlie", start_time=16.0, end_time=22.0, text="Great. I have been working on the backend APIs. The CRUD operations for meetings are complete.")
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 1", start_time=0.0, end_time=15.0, text="David is prioritizing planning personal leisure activities, specifically selecting movies to watch at cinemas."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 2", start_time=16.0, end_time=35.0, text="There is a focus on identifying current cinema releases, with a specific interest in an intense movie featuring Margot Robbie."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 1", start_time=36.0, end_time=50.0, text="Exploration of science fiction movies as a favored genre, particularly those with realistic or near-future themes like Interstellar and Arrival."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 2", start_time=51.0, end_time=65.0, text="The immediate goal is to finalize movie choices for a relaxing movie weekend."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 1", start_time=182.0, end_time=195.0, text="David is preparing for a short trip to Italy scheduled for early March, aiming to enjoy early spring weather."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 2", start_time=196.0, end_time=210.0, text="Recent travel highlights include a visit to Zimbabwe, focusing on cultural immersion and local cuisine."),
+        models.TranscriptLine(meeting_id=meeting1.id, speaker="Speaker 1", start_time=211.0, end_time=230.0, text="Another significant travel experience involved swimming with whales in Tonga, which was a bit scary but memorable."),
     ]
     db.bulk_save_objects(t1)
 
     s1 = models.MeetingSummary(
         meeting_id=meeting1.id,
-        summary_text="The team discussed the progress of the weekly tasks. Bob is finishing the frontend dashboard while Charlie completed the backend APIs.",
-        action_items='["Bob to finalize CSS for dashboard", "Charlie to review backend API PRs"]',
-        key_topics='["Frontend Dashboard", "Backend APIs"]'
+        summary_text="",
+        action_items=json.dumps([]),
+        key_topics=json.dumps([
+            {"title": "Planning Upcoming Leisure Activities (00:00)", "details": [
+                "David is prioritizing planning personal leisure activities, specifically selecting movies to watch at cinemas.",
+                "There is a focus on identifying current cinema releases, with a specific interest in an intense movie featuring Margot Robbie.",
+                "Exploration of science fiction movies as a favored genre, particularly those with realistic or near-future themes like Interstellar and Arrival.",
+                "The immediate goal is to finalize movie choices for a relaxing movie weekend."
+            ]},
+            {"title": "Travel Preparations and Experiences (03:02)", "details": [
+                "David is preparing for a short trip to Italy scheduled for early March, aiming to enjoy early spring weather.",
+                "Recent travel highlights include a visit to Zimbabwe, focusing on cultural immersion and local cuisine.",
+                "Another significant travel experience involved swimming with whales in Tonga,"
+            ]}
+        ])
     )
     db.add(s1)
-    db.commit()
-
-    meeting2 = models.Meeting(
-        title="Design Review",
-        date=datetime.datetime.utcnow() - datetime.timedelta(days=1),
-        duration=3600,
-        participants="Alice, Dave"
-    )
-    db.add(meeting2)
-    db.commit()
-    db.refresh(meeting2)
-
-    t2 = [
-        models.TranscriptLine(meeting_id=meeting2.id, speaker="Alice", start_time=0.0, end_time=8.0, text="Hey Dave, did you get a chance to look at the new mockups for the meeting details page?"),
-        models.TranscriptLine(meeting_id=meeting2.id, speaker="Dave", start_time=9.0, end_time=20.0, text="Yes, I did. I think the transcript view is much cleaner now. However, I think we should add a dark mode toggle."),
-        models.TranscriptLine(meeting_id=meeting2.id, speaker="Alice", start_time=21.0, end_time=30.0, text="That's a good idea. I'll add a dark mode toggle to the top navigation bar.")
-    ]
-    db.bulk_save_objects(t2)
-
-    s2 = models.MeetingSummary(
-        meeting_id=meeting2.id,
-        summary_text="Alice and Dave reviewed the new mockups. Dave suggested adding a dark mode toggle, which Alice agreed to implement.",
-        action_items='["Alice to add dark mode toggle to navbar"]',
-        key_topics='["Mockup Review", "Dark Mode"]'
-    )
-    db.add(s2)
     db.commit()
 
     print("Database seeded successfully.")

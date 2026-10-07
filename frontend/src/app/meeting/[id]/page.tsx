@@ -1,26 +1,32 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Play, Pause, Search, Video, FileText, Bot, Menu, Sparkles, SlidersHorizontal, CheckSquare, MessageSquare, RotateCcw, RotateCw, Download, Star, Share, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Play, Pause, Search, Video, Bot, Menu, Sparkles, CheckSquare, MessageSquare, RotateCcw, RotateCw, Download, Star, Share, ThumbsUp, ThumbsDown, X, Edit3, Copy, MoreHorizontal, ChevronDown, Bell, Plus, Maximize } from "lucide-react";
 
-export default function MeetingDetailView() {
+function MeetingDetailContent() {
   const params = useParams();
+  const router = useRouter();
   const [meeting, setMeeting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const maxTime = meeting?.transcripts.length ? Math.max(...meeting.transcripts.map((t: any) => t.end_time)) : 519; // ~8:39 default
+  const maxTime = meeting?.transcripts?.length ? Math.max(...meeting.transcripts.map((t: any) => t.end_time)) : 344; // 05:44
   
   const [rightTab, setRightTab] = useState("transcript");
+  const [transcriptSearch, setTranscriptSearch] = useState("");
+  const activeTranscriptRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch(`http://localhost:8000/api/meetings/${params.id}`)
       .then((res) => res.json())
-      .then((data) => { setMeeting(data); setLoading(false); })
+      .then((data) => { 
+        setMeeting(data); 
+        setLoading(false); 
+      })
       .catch((err) => console.error(err));
   }, [params.id]);
 
@@ -31,156 +37,361 @@ export default function MeetingDetailView() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isPlaying, maxTime]);
 
+  useEffect(() => {
+    if (activeTranscriptRef.current && isPlaying) {
+      activeTranscriptRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [currentTime, isPlaying]);
+
   const formatTime = (sec: number) => `${Math.floor(sec / 60).toString().padStart(2, '0')}:${Math.floor(sec % 60).toString().padStart(2, '0')}`;
 
-  if (loading || !meeting) return <div style={{ padding: 40, color: "var(--text-muted)" }}>Loading...</div>;
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentTime(Number(e.target.value));
+  };
+
+  if (loading || !meeting) return <div style={{ padding: 40, color: "#a1a1aa", backgroundColor: "#111113", height: "100vh" }}>Loading...</div>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", backgroundColor: "#111113", color: "#f3f4f6", fontFamily: "var(--font-inter), sans-serif" }}>
       
+      {/* 7 Days Trial Banner */}
+      <div style={{ backgroundColor: "#1d163a", color: "#d1d5db", padding: "8px 24px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "0.85rem", borderBottom: "1px solid #1f2228", position: "relative" }}>
+        <span>You are eligible for 7 days business plan free trial. <span style={{ color: "#a78bfa", cursor: "pointer", marginLeft: 4 }}>Start free trial →</span></span>
+        <X size={14} color="#6b7280" style={{ position: "absolute", right: 16, cursor: "pointer" }} />
+      </div>
+
       {/* Top Header */}
-      <header style={{ height: 56, borderBottom: "1px solid var(--border-dark)", display: "flex", alignItems: "center", padding: "0 16px", justifyContent: "space-between", backgroundColor: "var(--surface-dark)" }}>
+      <header style={{ height: 56, borderBottom: "1px solid #27272a", display: "flex", alignItems: "center", padding: "0 16px", justifyContent: "space-between", backgroundColor: "#18181b" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Menu size={20} color="var(--text-muted)" />
-          <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>#All Meetings / {meeting.title}</span>
+          <Menu size={20} color="#71717a" cursor="pointer" />
+          <span style={{ fontSize: "0.9rem", color: "#a1a1aa", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ cursor: "pointer" }} onClick={() => router.push("/dashboard")}>#All Meetings</span> / <span style={{ color: "#f3f4f6" }}>{meeting.title}</span> <span style={{ width: 6, height: 6, backgroundColor: "#10b981", borderRadius: "50%", display: "inline-block" }} />
+          </span>
         </div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <button style={{ color: "#10b981", fontSize: "0.85rem", fontWeight: 500 }}>Upgrade</button>
-          <div style={{ width: 1, height: 16, backgroundColor: "var(--border-dark)" }} />
-          <button className="btn btn-primary" style={{ padding: "6px 12px", borderRadius: 4, display: "flex", gap: 8 }}><Share size={16} /> Share</button>
+          <button style={{ color: "#10b981", fontSize: "0.85rem", fontWeight: 500, background: "none", border: "none", cursor: "pointer" }}>Upgrade</button>
+          <div style={{ width: 1, height: 16, backgroundColor: "#27272a" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#3b82f6", cursor: "pointer" }}>
+            <span style={{ fontWeight: "bold" }}>&gt;</span><ChevronDown size={14} />
+          </div>
+          <button style={{ backgroundColor: "#7c3aed", color: "#fff", padding: "6px 12px", borderRadius: 4, display: "flex", alignItems: "center", gap: 8, border: "none", fontSize: "0.85rem", fontWeight: 500, cursor: "pointer" }}><Share size={14} /> Share <span style={{ color: "#a78bfa" }}>&lt;&gt;</span></button>
+          <div style={{ width: 1, height: 16, backgroundColor: "#27272a" }} />
+          <Plus size={18} color="#71717a" cursor="pointer" />
+          <Bell size={18} color="#71717a" cursor="pointer" />
+          <div style={{ width: 28, height: 28, borderRadius: 4, backgroundColor: "#b48372", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: "bold", cursor: "pointer", color: "#fff" }}>S</div>
         </div>
       </header>
 
       {/* Main Layout */}
-      <div className="meeting-layout" style={{ flex: 1 }}>
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         
         {/* Left Smart Search Panel */}
-        <div className="panel-left">
-          <div style={{ padding: "16px", borderBottom: "1px solid var(--border-dark)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 500 }}>Smart Search</span>
+        <div style={{ width: 260, borderRight: "1px solid #27272a", display: "flex", flexDirection: "column", overflowY: "auto", backgroundColor: "#111113" }}>
+          <div style={{ padding: "16px", borderBottom: "1px solid #27272a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>Smart Search</span>
           </div>
           <div style={{ padding: 16 }}>
-            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", marginBottom: 12 }}>AI FILTERS</div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#71717a", marginBottom: 12 }}>AI FILTERS</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div style={{ backgroundColor: "#24272c", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#10b981" }}/> Date & Time</span> <span>5</span></div>
-              <div style={{ backgroundColor: "#24272c", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f59e0b" }}/> Tasks</span> <span>10</span></div>
+              <div style={{ backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between", border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#10b981" }}/> Date & Time</span> <span>12</span></div>
+              <div style={{ backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between", border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#3b82f6" }}/> Metrics</span> <span>5</span></div>
+              <div style={{ backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between", border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#ec4899" }}/> Questions</span> <span>14</span></div>
+              <div style={{ backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, fontSize: "0.8rem", display: "flex", justifyContent: "space-between", border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f59e0b" }}/> Tasks</span> <span>5</span></div>
             </div>
             
-            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", marginTop: 24, marginBottom: 12 }}>SENTIMENTS</div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#71717a", marginTop: 24, marginBottom: 12 }}>SENTIMENTS</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#3b82f6" }}/> Positive</span> <span>39%</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f43f5e" }}/> Neutral</span> <span>58%</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f59e0b" }}/> Negative</span> <span>2%</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#ef4444" }}/> Neutral</span> <span>58%</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#3b82f6" }}/> Positive</span> <span>38%</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", backgroundColor: "#18181b", padding: "8px 12px", borderRadius: 8, border: "1px solid #27272a" }}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#f59e0b" }}/> Negative</span> <span>4%</span></div>
             </div>
 
-            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", marginTop: 24, marginBottom: 12 }}>SPEAKER TALKTIME</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "8px 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold" }}>K</div>
-                Krish Ramineni
+            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#71717a", marginTop: 24, marginBottom: 12 }}>SPEAKER TALKTIME</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#18181b", borderRadius: 8, border: "1px solid #27272a" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 4, backgroundColor: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold", fontSize: "0.7rem" }}>S</div>
+                  Speaker 2
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <span style={{ color: "#a1a1aa", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "#ef4444" }}/> 209</span>
+                  <span style={{ color: "#a78bfa", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid #a78bfa", borderTopColor: "transparent" }}/> 61%</span>
+                </div>
               </div>
-              <span style={{ color: "var(--primary-color)" }}>100%</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#18181b", borderRadius: 8, border: "1px solid #27272a" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 4, backgroundColor: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold", fontSize: "0.7rem" }}>S</div>
+                  Speaker 1
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <span style={{ color: "#a1a1aa", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "#f59e0b" }}/> 198</span>
+                  <span style={{ color: "#818cf8", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid #818cf8", borderTopColor: "transparent" }}/> 39%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#71717a", marginTop: 24, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+              TOPIC TRACKERS <Plus size={14} cursor="pointer" />
             </div>
           </div>
         </div>
 
         {/* Center Panel (Notes & Summary) */}
-        <div className="panel-center" style={{ overflowY: "auto", padding: "24px 40px" }}>
-          
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
-            <div style={{ display: "flex", backgroundColor: "var(--surface-dark)", borderRadius: 8, padding: 4 }}>
-              <button style={{ padding: "6px 16px", borderRadius: 4, backgroundColor: "#33373e", fontSize: "0.85rem", fontWeight: 500 }}>Notes</button>
-              <button style={{ padding: "6px 16px", borderRadius: 4, fontSize: "0.85rem", color: "var(--text-secondary)" }}>AI Skills <span style={{ backgroundColor: "#24272c", padding: "2px 6px", borderRadius: 12, marginLeft: 4 }}>0</span></button>
+        <div style={{ flex: 1, borderRight: "1px solid #27272a", display: "flex", flexDirection: "column", backgroundColor: "#111113", position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "12px 0", borderBottom: "1px solid transparent" }}>
+            <div style={{ display: "flex", backgroundColor: "#18181b", borderRadius: 8, padding: 4, border: "1px solid #27272a" }}>
+              <button style={{ padding: "6px 16px", borderRadius: 4, backgroundColor: "#3f3f46", fontSize: "0.85rem", fontWeight: 500, color: "#fff", border: "none" }}>Notes</button>
+              <button style={{ padding: "6px 16px", borderRadius: 4, fontSize: "0.85rem", color: "#a1a1aa", background: "none", border: "none" }}>AI Skills <span style={{ backgroundColor: "#27272a", padding: "2px 6px", borderRadius: 12, marginLeft: 4 }}>0</span></button>
             </div>
+            <Maximize size={16} color="#71717a" style={{ position: "absolute", right: 24, top: 24, cursor: "pointer" }} />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-            <div>
-              <h1 style={{ fontSize: "1.8rem", fontWeight: 600, marginBottom: 8 }}>{meeting.title}</h1>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 16, height: 16, backgroundColor: "#f43f5e", borderRadius: 4 }}/> Fred Fireflies</div>
-                <span>{format(new Date(meeting.date), "MMM dd yyyy, h:mm a")}</span>
-                <span>· English (Global)</span>
+          <div style={{ flex: 1, overflowY: "auto", padding: "24px 80px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+              <div>
+                <h1 style={{ fontSize: "1.8rem", fontWeight: 600, marginBottom: 12, color: "#fff" }}>{meeting.title}</h1>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "0.85rem", color: "#a1a1aa" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 20, height: 20, backgroundColor: "#b48372", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff" }}>S</div> Satyam V
+                  </div>
+                  <span>{format(new Date(meeting.date), "MMM dd yyyy, h:mm a")}</span>
+                  <span>· English (Global)</span>
+                </div>
               </div>
+              <button style={{ padding: "6px 12px", backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: 6, color: "#d4d4d8", display: "flex", gap: 8, alignItems: "center", fontSize: "0.85rem", cursor: "pointer" }}><Video size={16} /> Video</button>
             </div>
-            <button className="btn btn-secondary" style={{ padding: "6px 12px" }}><Video size={16} /> Video</button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 16, color: "#a78bfa", fontSize: "0.9rem", marginBottom: 32 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Sparkles size={16} /> 1:1 <ChevronDown size={14}/></span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#a78bfa", cursor: "pointer" }}><Edit3 size={14} /> Refine Summary</span>
+              <Copy size={16} color="#a1a1aa" cursor="pointer" />
+            </div>
+
+            {/* Actual AI Summary Content */}
+            <div style={{ color: "#d4d4d8", fontSize: "0.95rem", lineHeight: 1.6 }}>
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "#fff", marginBottom: 24 }}>Current Focus Area</h3>
+              
+              {meeting.summary ? (
+                <>
+                  {meeting.summary.summary_text && <p style={{ marginBottom: 24, fontSize: "0.95rem" }}>{meeting.summary.summary_text}</p>}
+                  
+                  {meeting.summary.action_items && JSON.parse(meeting.summary.action_items).length > 0 && (
+                    <>
+                      <h4 style={{ fontWeight: 600, color: "#fff", marginTop: 24, marginBottom: 12 }}>Action Items</h4>
+                      <ul style={{ paddingLeft: 0, display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+                        {JSON.parse(meeting.summary.action_items).map((item: any, idx: number) => {
+                          const isObj = typeof item === 'object' && item !== null;
+                          const text = isObj ? item.text : item;
+                          const completed = isObj ? item.completed : false;
+                          return (
+                            <li key={idx} style={{ display: "flex", alignItems: "center", gap: 8, color: completed ? "#52525b" : "#a1a1aa", listStyleType: "none", cursor: "pointer" }} onClick={() => {
+                              // Toggle complete
+                              const currentItems = JSON.parse(meeting.summary.action_items).map((i: any) => typeof i === 'object' ? i : { text: i, completed: false });
+                              currentItems[idx].completed = !currentItems[idx].completed;
+                              const newSummary = { ...meeting.summary, action_items: JSON.stringify(currentItems) };
+                              setMeeting({ ...meeting, summary: newSummary });
+                              
+                              fetch(`http://localhost:8000/api/meetings/${meeting.id}/summary`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  summary_text: newSummary.summary_text,
+                                  action_items: newSummary.action_items,
+                                  key_topics: newSummary.key_topics
+                                })
+                              });
+                            }}>
+                              <div style={{ width: 16, height: 16, border: "1px solid " + (completed ? "#34d399" : "#52525b"), borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: completed ? "#34d399" : "transparent" }}>
+                                {completed && <CheckSquare size={12} color="#000" />}
+                              </div>
+                              <span style={{ textDecoration: completed ? "line-through" : "none" }}>{text}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  )}
+
+                  <ul style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+                    {meeting.summary.key_topics && JSON.parse(meeting.summary.key_topics).map((topic: any, idx: number) => (
+                      <li key={idx} style={{ fontWeight: 600, color: "#fff", listStyleType: "disc" }}>
+                        {topic.title}
+                        <ul style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 10, marginTop: 10, fontWeight: "normal" }}>
+                          {topic.details.map((detail: string, dIdx: number) => (
+                            <li key={dIdx} style={{ color: "#a1a1aa", listStyleType: "'◇  '" }} dangerouslySetInnerHTML={{ __html: detail.replace(/Interstellar/g, "<i>Interstellar</i>").replace(/Arrival/g, "<i>Arrival</i>") }}></li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p>No summary available for this meeting yet.</p>
+              )}
+            </div>
+
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: 24, borderBottom: "1px solid var(--border-dark)", paddingBottom: 16 }}>
-            <Sparkles size={16} /> General Summary
-          </div>
-
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 16 }}>Notes</h3>
-          <p style={{ lineHeight: 1.7, fontSize: "0.95rem", color: "#d1d5db" }}>
-            {meeting.summary ? meeting.summary.summary_text : "No summary available."}
-          </p>
-
         </div>
 
         {/* Right Panel (Transcript / AskFred) */}
-        <div className="panel-right">
-          <div style={{ display: "flex", borderBottom: "1px solid var(--border-dark)" }}>
+        <div style={{ width: 340, display: "flex", flexDirection: "column", backgroundColor: "#111113" }}>
+          <div style={{ display: "flex", borderBottom: "1px solid #27272a" }}>
             <button 
-              style={{ flex: 1, padding: "16px 0", borderBottom: rightTab === "askfred" ? "2px solid var(--primary-color)" : "2px solid transparent", color: rightTab === "askfred" ? "var(--primary-color)" : "var(--text-secondary)", fontWeight: 500, fontSize: "0.9rem", display: "flex", justifyContent: "center", gap: 8 }}
+              style={{ flex: 1, padding: "16px 0", borderBottom: rightTab === "askfred" ? "2px solid #a78bfa" : "2px solid transparent", color: rightTab === "askfred" ? "#a78bfa" : "#a1a1aa", fontWeight: 500, fontSize: "0.9rem", display: "flex", justifyContent: "center", gap: 8, background: "none", borderTop: "none", borderLeft: "none", borderRight: "none", cursor: "pointer" }}
               onClick={() => setRightTab("askfred")}
             ><Bot size={18} /> AskFred</button>
             <button 
-              style={{ flex: 1, padding: "16px 0", borderBottom: rightTab === "transcript" ? "2px solid var(--primary-color)" : "2px solid transparent", color: rightTab === "transcript" ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: 500, fontSize: "0.9rem" }}
+              style={{ flex: 1, padding: "16px 0", borderBottom: rightTab === "transcript" ? "2px solid #a78bfa" : "2px solid transparent", color: rightTab === "transcript" ? "#f3f4f6" : "#a1a1aa", fontWeight: 500, fontSize: "0.9rem", background: "none", borderTop: "none", borderLeft: "none", borderRight: "none", cursor: "pointer" }}
               onClick={() => setRightTab("transcript")}
             >Transcript</button>
           </div>
           
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-dark)" }}>
-            <div className="input-wrapper">
-              <Search className="input-icon" size={14} />
-              <input type="text" className="input with-icon" placeholder="Find or Replace" style={{ backgroundColor: "transparent", border: "none", padding: "8px 12px 8px 32px", fontSize: "0.85rem" }} />
-            </div>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
-            {meeting.transcripts.map((t: any) => (
-              <div key={t.id} style={{ display: "flex", gap: 16 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold", fontSize: "0.8rem", flexShrink: 0 }}>K</div>
-                <div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, fontSize: "0.85rem" }}>
-                    <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>{t.speaker}</span>
-                    <span style={{ color: "var(--primary-color)", cursor: "pointer" }} onClick={() => { setCurrentTime(t.start_time); setIsPlaying(true); }}>{formatTime(t.start_time)}</span>
+          {rightTab === "askfred" ? (
+            <div style={{ flex: 1, padding: 24, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+              <div style={{ backgroundColor: "#18181b", padding: 16, borderRadius: 8, border: "1px solid #2d244a", display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 32 }}>
+                <div style={{ display: "flex", gap: -4 }}>
+                  <div style={{ width: 24, height: 24, backgroundColor: "#fff", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, boxShadow: "0 0 5px rgba(0,0,0,0.5)" }}>
+                    <img src="https://www.svgrepo.com/show/475689/slack-color.svg" alt="Slack" style={{ width: 14, height: 14 }} />
                   </div>
-                  <div style={{ fontSize: "0.95rem", lineHeight: 1.6, color: (currentTime >= t.start_time && currentTime <= t.end_time) ? "#fff" : "#d1d5db" }}>
-                    {t.text}
+                  <div style={{ width: 24, height: 24, backgroundColor: "#fff", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, marginLeft: -8, boxShadow: "0 0 5px rgba(0,0,0,0.5)" }}>
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Gmail" style={{ width: 14, height: 14 }} />
                   </div>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "0.85rem", color: "#f3f4f6", lineHeight: 1.4 }}>
+                    Connect Slack and Gmail <span style={{ color: "#a1a1aa" }}>— get answers with full context.</span>
+                  </div>
+                  <div style={{ color: "#a78bfa", fontSize: "0.85rem", marginTop: 8, textAlign: "right", cursor: "pointer" }}>Connect <X size={12} style={{ display: "inline", marginLeft: 4 }} color="#52525b" /></div>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <Sparkles size={20} color="#34d399" />
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 500, margin: "8px 0 24px 0", color: "#fff" }}>Hi Satyam! <br /> Ask anything about this meeting</h3>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ padding: "10px 16px", backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: "0.85rem", color: "#a1a1aa", cursor: "pointer" }}>Why was whale swimming scary?</div>
+                <div style={{ padding: "10px 16px", backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: "0.85rem", color: "#a1a1aa", cursor: "pointer" }}>What did Zimbabwe offer culturally?</div>
+                <div style={{ padding: "10px 16px", backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: "0.85rem", color: "#a1a1aa", cursor: "pointer" }}>Which Margot Robbie movie was mentioned?</div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #27272a", backgroundColor: "#18181b" }}>
+                <div style={{ display: "flex", alignItems: "center", backgroundColor: "#111113", padding: "8px 12px", borderRadius: 6, border: "1px solid #27272a" }}>
+                  <Search size={14} color="#71717a" style={{ marginRight: 8 }} />
+                  <input type="text" placeholder="Search" value={transcriptSearch} onChange={(e) => setTranscriptSearch(e.target.value)} style={{ backgroundColor: "transparent", border: "none", color: "#f3f4f6", fontSize: "0.85rem", width: "100%", outline: "none" }} />
+                </div>
+              </div>
+
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
+                {meeting.transcripts?.map((t: any) => {
+                  const isActive = currentTime >= t.start_time && currentTime <= t.end_time;
+                  
+                  // Highlight logic
+                  const textSegments = transcriptSearch 
+                    ? t.text.split(new RegExp(`(${transcriptSearch})`, 'gi')) 
+                    : [t.text];
+
+                  return (
+                    <div 
+                      key={t.id} 
+                      ref={isActive ? activeTranscriptRef : null}
+                      style={{ display: "flex", gap: 16, cursor: "pointer" }}
+                      onClick={() => { setCurrentTime(t.start_time); setIsPlaying(true); }}
+                    >
+                      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: t.speaker === "Speaker 1" ? "#10b981" : "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold", fontSize: "0.7rem", flexShrink: 0 }}>
+                        {t.speaker.charAt(t.speaker.length - 1)}
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, fontSize: "0.85rem" }}>
+                          <span style={{ fontWeight: 500, color: "#d4d4d8" }}>{t.speaker}</span>
+                          <span style={{ color: "#3b82f6" }}>{formatTime(t.start_time)}</span>
+                        </div>
+                        <div style={{ fontSize: "0.95rem", lineHeight: 1.6, color: isActive ? "#fff" : "#a1a1aa", backgroundColor: isActive ? "rgba(255,255,255,0.05)" : "transparent", padding: isActive ? "4px 8px" : "0", borderRadius: 4, margin: isActive ? "-4px -8px" : "0" }}>
+                          {textSegments.map((seg: string, i: number) => 
+                            seg.toLowerCase() === transcriptSearch.toLowerCase() ? 
+                            <mark key={i} style={{ backgroundColor: "#fef08a", color: "#000" }}>{seg}</mark> : 
+                            <span key={i}>{seg}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!meeting.transcripts?.length && <div style={{ color: "#71717a", textAlign: "center", marginTop: 40 }}>No transcript data available.</div>}
+              </div>
+            </>
+          )}
+
+          {/* AskFred Bottom Input (Visible when AskFred tab is active) */}
+          {rightTab === "askfred" && (
+            <div style={{ padding: 16, borderTop: "1px solid #27272a" }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <span style={{ backgroundColor: "#18181b", border: "1px solid #27272a", padding: "4px 10px", borderRadius: 4, fontSize: "0.75rem", color: "#a1a1aa", display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#10b981" }}/> 1:1</span>
+                <span style={{ backgroundColor: "#18181b", border: "1px solid #27272a", padding: "4px 10px", borderRadius: 4, fontSize: "0.75rem", color: "#a1a1aa", display: "flex", alignItems: "center", gap: 6 }}><Plus size={10} color="#10b981"/> Meeting Minutes Mailer</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", backgroundColor: "#18181b", padding: "12px", borderRadius: 8, border: "1px solid #27272a" }}>
+                <input type="text" placeholder="Ask anything. Type / to run AI Skills" style={{ background: "transparent", border: "none", color: "#f3f4f6", width: "100%", fontSize: "0.85rem", outline: "none" }} />
+                <div style={{ width: 24, height: 24, backgroundColor: "#2d244a", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>↑</div>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
 
-      {/* Bottom Media Player */}
-      <div className="bottom-player">
-        <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", width: 120 }}>
-          <span style={{ color: "#fff" }}>{formatTime(currentTime)}</span> / {formatTime(maxTime)}
-        </div>
+      {/* Bottom Media Player with Seek Bar */}
+      <div style={{ height: 80, backgroundColor: "#18181b", borderTop: "1px solid #27272a", display: "flex", flexDirection: "column" }}>
         
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>1x</span>
-          <RotateCcw size={18} color="var(--text-secondary)" cursor="pointer" onClick={() => setCurrentTime(Math.max(0, currentTime - 10))} />
-          <button style={{ width: 32, height: 32, borderRadius: "50%", backgroundColor: "var(--primary-color)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", border: "none" }} onClick={() => setIsPlaying(!isPlaying)}>
-            {isPlaying ? <Pause size={16} /> : <Play size={16} style={{ marginLeft: 2 }} />}
-          </button>
-          <RotateCw size={18} color="var(--text-secondary)" cursor="pointer" onClick={() => setCurrentTime(Math.min(maxTime, currentTime + 10))} />
-          <Download size={18} color="var(--text-secondary)" cursor="pointer" />
+        {/* Seek Bar (Progress) */}
+        <div style={{ height: 16, width: "100%", padding: "0 24px", display: "flex", alignItems: "center", marginTop: -8, position: "relative" }}>
+          <input 
+            type="range" 
+            min="0" 
+            max={maxTime} 
+            value={currentTime} 
+            onChange={handleSeek}
+            style={{ width: "100%", height: 4, appearance: "none", background: `linear-gradient(to right, #a78bfa ${(currentTime/maxTime)*100}%, #3f3f46 ${(currentTime/maxTime)*100}%)`, borderRadius: 2, outline: "none", cursor: "pointer" }} 
+            className="seek-slider"
+          />
+          <style dangerouslySetInnerHTML={{__html: `
+            .seek-slider::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #a78bfa; cursor: pointer; transition: transform 0.1s; }
+            .seek-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
+          `}} />
         </div>
 
-        <div style={{ display: "flex", gap: 16, width: 120, justifyContent: "flex-end" }}>
-          <Star size={18} color="var(--text-secondary)" cursor="pointer" />
-          <CheckSquare size={18} color="var(--text-secondary)" cursor="pointer" />
-          <ThumbsUp size={18} color="var(--text-secondary)" cursor="pointer" />
-          <ThumbsDown size={18} color="var(--text-secondary)" cursor="pointer" />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px" }}>
+          <div style={{ fontSize: "0.85rem", color: "#a1a1aa", width: 120 }}>
+            <span style={{ color: "#fff" }}>{formatTime(currentTime)}</span> / {formatTime(maxTime)}
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+            <span style={{ fontSize: "0.85rem", color: "#a1a1aa" }}>1x</span>
+            <RotateCcw size={18} color="#a1a1aa" cursor="pointer" onClick={() => setCurrentTime(Math.max(0, currentTime - 10))} />
+            <button style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", border: "none", cursor: "pointer" }} onClick={() => setIsPlaying(!isPlaying)}>
+              {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
+            </button>
+            <RotateCw size={18} color="#a1a1aa" cursor="pointer" onClick={() => setCurrentTime(Math.min(maxTime, currentTime + 10))} />
+            <Download size={18} color="#a1a1aa" cursor="pointer" />
+          </div>
+
+          <div style={{ display: "flex", gap: 16, width: 120, justifyContent: "flex-end" }}>
+            <Star size={18} color="#a1a1aa" cursor="pointer" />
+            <CheckSquare size={18} color="#a1a1aa" cursor="pointer" />
+            <ThumbsUp size={18} color="#a1a1aa" cursor="pointer" />
+            <ThumbsDown size={18} color="#a1a1aa" cursor="pointer" />
+          </div>
         </div>
       </div>
       
     </div>
+  );
+}
+
+export default function MeetingDetailView() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, color: "#a1a1aa", backgroundColor: "#111113", height: "100vh" }}>Loading...</div>}>
+      <MeetingDetailContent />
+    </Suspense>
   );
 }
