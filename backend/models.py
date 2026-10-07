@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 import datetime
-from .database import Base
+from database import Base
 
 class Meeting(Base):
     __tablename__ = "meetings"
