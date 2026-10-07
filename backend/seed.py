@@ -1,8 +1,8 @@
 import datetime
 import json
 from sqlalchemy.orm import Session
-from .database import engine, SessionLocal
-from . import models
+from database import engine, SessionLocal
+import models
 
 def seed_db():
     models.Base.metadata.create_all(bind=engine)
